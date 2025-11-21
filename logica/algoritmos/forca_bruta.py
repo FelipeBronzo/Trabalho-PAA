@@ -36,4 +36,4 @@ def melhor_solucao_forca_bruta(pecas: List[Peca], largura_util: int = 280, altur
 
     dur = time.perf_counter() - inicio
     print(f"[brute_force] Permutações avaliadas: {total_de_permutacoes} em {dur:.3f}s")
-    return melhor_custo, melhor_numero_de_placas, melhor_layout
+    return melhor_custo, melhor_numero_de_placas, melhor_layout, total_de_permutacoes

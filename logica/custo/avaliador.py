@@ -2,7 +2,6 @@ from typing import List
 from logica.custo.posicionamento import simular_ordem
 from models.placa import Placa
 
-
 def obter_pecas_da_placa(placa: Placa):
 
     """
@@ -111,7 +110,6 @@ def calcular_custo_energia(placa: Placa):
 
     return custo_em_reais
 
-
 def custo_total_para_ordem(ordem_pecas, altura_placa, largura_placa, custo_placa=1000):
     """
     Simula a ordem das peças, gera as placas resultantes,
@@ -132,4 +130,3 @@ def custo_total_para_ordem(ordem_pecas, altura_placa, largura_placa, custo_placa
     custo_total = custo_materia_prima + custo_energia
 
     return custo_total, len(lista_de_placas), lista_de_placas
-

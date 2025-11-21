@@ -15,7 +15,7 @@ class App(tk.Tk):
         super().__init__()
 
         self.title("Otimizador de Corte - PAA")
-        self.geometry("1300x800")
+        self.geometry("1000x600")
 
         self.pecas = None
         self.layout = None
@@ -42,8 +42,8 @@ class App(tk.Tk):
         ttk.Combobox(
             frame_input,
             textvariable=self.algoritmo_var,
-            values=["Força Bruta", "Branch and Bound"],
-            width=10
+            values=["Força Bruta", "Branch and Bound", "Best-Fit Shelf"],  # adicionado aqui
+            width=15
         ).grid(row=0, column=2)
 
         tk.Button(
@@ -120,11 +120,13 @@ class App(tk.Tk):
         inicio = time.perf_counter()
 
         if algoritmo == "Força Bruta":
-            custo, num_placas, layout = melhor_solucao_forca_bruta(self.pecas)
-
+            custo, num_placas, layout, permutacoes = melhor_solucao_forca_bruta(self.pecas)
+        elif algoritmo == "Best-Fit Shelf":
+            from logica.algoritmos.best_fit_shelf import melhor_solucao_best_fit
+            custo, num_placas, layout = melhor_solucao_best_fit(self.pecas)
         else:
             solver = BranchAndBound()
-            custo, num_placas, layout, _ = solver.resolver(self.pecas)
+            custo, num_placas, layout, permutacoes = solver.resolver(self.pecas)
 
         fim = time.perf_counter()
         tempo = fim - inicio
@@ -132,11 +134,26 @@ class App(tk.Tk):
         self.layout = layout
 
         # Atualiza métricas na tela
-        self.info_var.set(
-            f"Placas usadas: {num_placas}  |  "
-            f"Custo: R$ {custo:.2f}  |  "
-            f"Tempo: {tempo:.2f}s"
-        )
+        if algoritmo == "Força Bruta":
+            self.info_var.set(
+                f"Placas usadas: {num_placas}  |  "
+                f"Custo: R$ {custo:.2f}  |  "
+                f"Tempo: {tempo:.2f}s |  "
+                f"Permutações Analisadas: {permutacoes}"
+            )
+        elif algoritmo == "Best-Fit Shelf":
+            self.info_var.set(
+                f"Placas usadas: {num_placas}  |  "
+                f"Custo: R$ {custo:.2f}  |  "
+                f"Tempo: {tempo:.2f}s"
+            )
+        else:
+            self.info_var.set(
+                f"Placas usadas: {num_placas}  |  "
+                f"Custo: R$ {custo:.2f}  |  "
+                f"Tempo: {tempo:.2f}s |  "
+                f"Nós explorados: {permutacoes}"
+            )
 
         # limpar interface
         for w in self.frame_placas.winfo_children():
