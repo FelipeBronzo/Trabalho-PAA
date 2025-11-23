@@ -27,4 +27,4 @@ class Peca:
         """Retorna o peso desta peça: `peso` se definido, caso contrário `altura * largura`."""
         if hasattr(self, "peso") and self.peso is not None:
             return self.peso
-        return self.altura * self.largura
+        return (self.altura * self.largura)/1000

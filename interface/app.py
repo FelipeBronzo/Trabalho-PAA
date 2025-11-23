@@ -1,329 +1,365 @@
-# interface/app.py
-
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
-
 from logica.leitor_arquivo import ler_pecas
 from logica.algoritmos.forca_bruta import melhor_solucao_forca_bruta
 from logica.algoritmos.branch_and_bound import BranchAndBound
-from .desenhador import desenhar_layout
-
+from interface.desenhador import desenhar_layout
 
 class App(tk.Tk):
-
+    # ===============================================================
+    # CONJUNTOS DE ALGORITMOS POR MODO
+    # ===============================================================
+    ALGORITMOS_PARTE1 = [
+        "Força Bruta",
+        "Branch and Bound",
+        "Best-Fit Shelf"
+    ]
+    
+    ALGORITMOS_PARTE2 = [
+        "Força Bruta PT2",
+        "Heurística PT2",
+        "Branch and Bound PT2"
+    ]
+    
+    # ===============================================================
     def __init__(self):
         super().__init__()
-
         self.title("Otimizador de Corte - PAA")
-        self.geometry("1000x600")
-
+        self.geometry("1100x650")
+        
         self.pecas = None
         self.layout = None
-
+        self.modo = "PARTE 1"  # modo inicial
+        
         self._construir_interface()
-
-
-    # ---------------------------------------------------------
+        self._configurar_menu()
+        self._atualizar_algoritmos()
+    
+    # ===============================================================
+    # CONSTRUIR MENU SUPERIOR
+    # ===============================================================
+    def _configurar_menu(self):
+        menu_bar = tk.Menu(self)
+        self.config(menu=menu_bar)
+        
+        menu_modo = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Modo", menu=menu_modo)
+        
+        menu_modo.add_command(
+            label="Calcular cortes das peças (PARTE 1)",
+            command=self._ativar_parte1
+        )
+        menu_modo.add_command(
+            label="Distribuir peças no navio (PARTE 2)",
+            command=self._ativar_parte2
+        )
+    
+    # ===============================================================
+    # TROCA DE MODO
+    # ===============================================================
+    def _ativar_parte1(self):
+        self.modo = "PARTE 1"
+        self._limpar_tela()
+        self._atualizar_algoritmos()
+        self.label_modo.config(text="🔧 MODO: PARTE 1 - Calcular Cortes", bg="#4CAF50")
+        self.info_var.set("Carregue um arquivo de peças para começar.")
+    
+    def _ativar_parte2(self):
+        self.modo = "PARTE 2"
+        self._limpar_tela()
+        self._atualizar_algoritmos()
+        self.label_modo.config(text="🚢 MODO: PARTE 2 - Distribuir no Navio", bg="#2196F3")
+        self.info_var.set("Carregue um arquivo de peças para distribuir nos porões.")
+    
+    def _limpar_tela(self):
+        """Limpa todo o conteúdo da área de visualização"""
+        for widget in self.frame_placas.winfo_children():
+            widget.destroy()
+    
+    # ===============================================================
+    # RECARREGAR ALGORITMOS NO COMBOBOX
+    # ===============================================================
+    def _atualizar_algoritmos(self):
+        self.algoritmo_cb["values"] = (
+            self.ALGORITMOS_PARTE1 if self.modo == "PARTE 1" 
+            else self.ALGORITMOS_PARTE2
+        )
+        self.algoritmo_var.set(self.algoritmo_cb["values"][0])
+    
+    # ===============================================================
     def _construir_interface(self):
-
+        # === INDICADOR DE MODO (TOPO) ===
+        self.label_modo = tk.Label(
+            self, 
+            text="🔧 MODO: PARTE 1 - Calcular Cortes",
+            font=("Arial", 14, "bold"),
+            bg="#4CAF50",
+            fg="white",
+            pady=10
+        )
+        self.label_modo.pack(fill="x")
+        
         # === TOPO: Inputs ===
         frame_input = tk.Frame(self, pady=10)
-        frame_input.pack()
-
+        frame_input.pack(fill="x")
+        
         tk.Button(
             frame_input,
             text="Escolher arquivo de peças",
             command=self.carregar_arquivo
         ).grid(row=0, column=0, padx=5)
-
+        
         tk.Label(frame_input, text="Algoritmo: ").grid(row=0, column=1)
-
-        self.algoritmo_var = tk.StringVar(value="Branch and Bound")
-        ttk.Combobox(
+        
+        self.algoritmo_var = tk.StringVar(value="")
+        self.algoritmo_cb = ttk.Combobox(
             frame_input,
             textvariable=self.algoritmo_var,
-            values=["Força Bruta", "Força Bruta PT2", "Heurística PT2", "Branch and Bound", "Branch and Bound PT2", "Best-Fit Shelf"],  # adicionado heurística e PT2
-            width=22
-        ).grid(row=0, column=2)
-
-        # Nota: as opções "... PT2" resolvem o problema de PARTIÇÃO (parte 2):
-        # particionamento por peso entre dois porões. Essas opções NÃO executam a
-        # simulação/avaliação de empacotamento em placas (2D) — isso evita
-        # mensagens/erros do tipo "Peça AxB maior que área útil da placa" que
-        # pertencem ao problema de corte em placas. Em vez disso a interface
-        # chama diretamente as funções de partição e mostra grupos/pesos.
-
+            values=[],
+            width=20,
+            state="readonly"
+        )
+        self.algoritmo_cb.grid(row=0, column=2)
+        
         tk.Button(
             frame_input,
             text="Executar",
             command=self.executar
         ).grid(row=0, column=3, padx=10)
-
-        tk.Button(
-            frame_input,
-            text="Comparar BF vs B&B PT2",
-            command=self.comparar_pt2
-        ).grid(row=0, column=4, padx=5)
-
+        
         # === MÉTRICAS FIXAS NA TELA ===
         self.info_var = tk.StringVar(value="Carregue um arquivo para começar.")
         tk.Label(
             self,
             textvariable=self.info_var,
-            font=("Arial", 12, "bold")
+            font=("Arial", 11),
+            justify="left"
         ).pack(pady=5)
-
+        
         # === ÁREA ROLÁVEL PARA AS PLACAS ===
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
-
+        
         self.canvas_principal = tk.Canvas(container, bg="#f0f0f0")
         self.canvas_principal.pack(side="left", fill="both", expand=True)
-
+        
         scrollbar = ttk.Scrollbar(
             container,
             orient="vertical",
             command=self.canvas_principal.yview
         )
         scrollbar.pack(side="right", fill="y")
-
+        
         self.canvas_principal.configure(yscrollcommand=scrollbar.set)
-
-        # Frame interno
+        
         self.frame_placas = tk.Frame(self.canvas_principal, bg="#f0f0f0")
         self.canvas_principal.create_window(
             (0, 0),
             window=self.frame_placas,
             anchor="nw"
         )
-
-        # Atualizar scroll
+        
         self.frame_placas.bind(
             "<Configure>",
             lambda e: self.canvas_principal.configure(
                 scrollregion=self.canvas_principal.bbox("all")
             )
         )
-
-
-    # ---------------------------------------------------------
+    
+    # ===============================================================
     def carregar_arquivo(self):
         caminho = filedialog.askopenfilename(
             title="Selecione o arquivo de peças",
             filetypes=[("Texto", "*.txt")]
         )
-
         if not caminho:
             return
-
+        
         self.pecas = ler_pecas(caminho)
-        self.info_var.set(f"{len(self.pecas)} peças carregadas. Execute para calcular.")
-
-
-    def comparar_pt2(self):
-        """
-        Botão: compara Força Bruta vs Branch-and-Bound (parte 2) usando os pesos
-        das peças (peso explícito ou área como fallback). Mostra tempos e métricas
-        na `info_var`.
-        """
-        if not self.pecas:
-            messagebox.showwarning("Erro", "Carregue um arquivo primeiro!")
-            return
-
-        pesos = [p.obter_peso() for p in self.pecas]
-        from logica.algoritmos.branch_and_boundpt2 import comparar_com_bruteforce
-
-        res = comparar_com_bruteforce(pesos)
-
-        bf = res["bruteforce"]
-        bnb = res["branch_and_bound"]
-        consistente = res.get("consistente", False)
-
-        def grupo_str(grupo_indices):
-            return ", ".join(f"{i}(p={pesos[i]})" for i in grupo_indices)
-        def peso_total(grupo_indices):
-            return sum(pesos[i] for i in grupo_indices)
-
-        bf_g1 = grupo_str(bf["grupo1"])
-        bf_g2 = grupo_str(bf["grupo2"])
-        bf_p1 = peso_total(bf["grupo1"])
-        bf_p2 = peso_total(bf["grupo2"])
-
-        bnb_g1 = grupo_str(bnb["grupo1"])
-        bnb_g2 = grupo_str(bnb["grupo2"])
-        bnb_p1 = peso_total(bnb["grupo1"])
-        bnb_p2 = peso_total(bnb["grupo2"])
-
-        msg = (
-            f"BF: dif={bf['melhor_dif']} particoes={bf.get('particoes_avaliadas', 'N/A')} t={bf['tempo']:.4f}s\n"
-            f"  Grupo1: [{bf_g1}] | Peso total: {bf_p1}\n"
-            f"  Grupo2: [{bf_g2}] | Peso total: {bf_p2}\n"
-            f"B&B: dif={bnb['melhor_dif']} nos={bnb['nos_explorados']} t={bnb['tempo']:.4f}s\n"
-            f"  Grupo1: [{bnb_g1}] | Peso total: {bnb_p1}\n"
-            f"  Grupo2: [{bnb_g2}] | Peso total: {bnb_p2}\n"
-            f"Consistente: {consistente}"
-        )
-        self.info_var.set(msg)
-
-
-    # ---------------------------------------------------------
+        self.info_var.set(f"{len(self.pecas)} peças carregadas. Selecione algoritmo e execute.")
+    
+    # ===============================================================
     def executar(self):
         if not self.pecas:
             messagebox.showwarning("Erro", "Carregue um arquivo primeiro!")
             return
-
+        
+        # Limpar tela antes de executar
+        self._limpar_tela()
+        
         algoritmo = self.algoritmo_var.get()
-
-        # executa algoritmo
+        
         import time
         inicio = time.perf_counter()
-        if algoritmo == "Força Bruta":
-            custo, num_placas, layout, permutacoes = melhor_solucao_forca_bruta(self.pecas)
-        elif algoritmo == "Força Bruta PT2":
-            # executar apenas o partionador (força bruta parte 2) — não chamar o avaliador de placas
-            pesos = [p.obter_peso() for p in self.pecas]
-            from logica.algoritmos.forca_brutapt2 import brute_force_partition
-            dif, g1, g2, particoes = brute_force_partition(pesos)
-            # não há custo/layout relacionado a placas para o problema da parte 2
-            custo = 0.0
-            num_placas = 0
-            layout = None
-        elif algoritmo == "Heurística PT2":
-            # aplica heurística de partição: não chamar o avaliador de placas
-            pesos = [p.obter_peso() for p in self.pecas]
-            from logica.algoritmos.branch_and_boundpt2 import heuristic_greedy_partition
-            dif, g1, g2, heur_time = heuristic_greedy_partition(pesos)
-
-            custo = 0.0
-            num_placas = 0
-            layout = None
-
-            # armazenar métricas da heurística para exibição
-            self._heur_pt2_diff = dif
-            self._heur_pt2_time = heur_time
-        elif algoritmo == "Branch and Bound PT2":
-            # aplica B&B de partição: não chamar o avaliador de placas
-            pesos = [p.obter_peso() for p in self.pecas]
-            from logica.algoritmos.branch_and_boundpt2 import branch_and_bound_partition
-            dif, g1, g2, nos = branch_and_bound_partition(pesos)
-
-            custo = 0.0
-            num_placas = 0
-            layout = None
-
-            # armazenar métricas para exibição abaixo
-            particoes = None
-            permutacoes = None
-            # manter 'nos' para mostrar
-            self._branch_pt2_nodes = nos
-            self._branch_pt2_diff = dif
-        elif algoritmo == "Best-Fit Shelf":
-            from logica.algoritmos.best_fit_shelf import melhor_solucao_best_fit
-            custo, num_placas, layout = melhor_solucao_best_fit(self.pecas)
+        
+        # ==========================================================
+        # PARTE 1 — Cortes das Peças
+        # ==========================================================
+        if self.modo == "PARTE 1":
+            if algoritmo == "Força Bruta":
+                custo, num_placas, layout, permutacoes = melhor_solucao_forca_bruta(self.pecas)
+                nos_explorados = None
+                
+            elif algoritmo == "Best-Fit Shelf":
+                from logica.algoritmos.best_fit_shelf import melhor_solucao_best_fit
+                custo, num_placas, layout = melhor_solucao_best_fit(self.pecas)
+                permutacoes = None
+                nos_explorados = None
+                
+            else:  # Branch and Bound
+                solver = BranchAndBound()
+                custo, num_placas, layout, permutacoes = solver.resolver(self.pecas)
+                nos_explorados = permutacoes  # Assumindo que retorna nós explorados
+            
+            fim = time.perf_counter()
+            tempo = fim - inicio
+            
+            if layout:
+                desenhar_layout(self.frame_placas, layout)
+                
+                # Mostrar informações apropriadas para cada algoritmo
+                info_texto = (
+                    f"Placas usadas: {num_placas} | "
+                    f"Custo: R$ {custo:.2f} | "
+                    f"Tempo: {tempo:.4f}s"
+                )
+                
+                if algoritmo == "Branch and Bound" and nos_explorados:
+                    info_texto += f" | Nós explorados: {nos_explorados}"
+                elif permutacoes and algoritmo == "Força Bruta":
+                    info_texto += f" | Permutações: {permutacoes}"
+                
+                self.info_var.set(info_texto)
+        
+        # ==========================================================
+        # PARTE 2 — Particionamento do Navio
+        # ==========================================================
         else:
-            solver = BranchAndBound()
-            custo, num_placas, layout, permutacoes = solver.resolver(self.pecas)
-
-        # calcula tempo total da execução
-        fim = time.perf_counter()
-        tempo = fim - inicio
-
-        self.layout = layout
-
-        # Atualiza métricas na tela
-        if algoritmo == "Força Bruta":
-            self.info_var.set(
-                f"Placas usadas: {num_placas}  |  "
-                f"Custo: R$ {custo:.2f}  |  "
-                f"Tempo: {tempo:.2f}s |  "
-                f"Permutações Analisadas: {permutacoes}"
-            )
-        elif algoritmo == "Força Bruta PT2":
-            # particoes contém o número de partições avaliadas retornado pelo adaptador
-            # mostrar divisão dos grupos e pesos
-            from logica.algoritmos.forca_brutapt2 import brute_force_partition
             pesos = [p.obter_peso() for p in self.pecas]
-            _, g1, g2, _ = brute_force_partition(pesos)
-            def grupo_str(grupo_indices):
-                return ", ".join(f"{i}(p={pesos[i]})" for i in grupo_indices)
-            def peso_total(grupo_indices):
-                return sum(pesos[i] for i in grupo_indices)
-            g1_str = grupo_str(g1)
-            g2_str = grupo_str(g2)
-            p1 = peso_total(g1)
-            p2 = peso_total(g2)
-            self.info_var.set(
-                f"Placas usadas: {num_placas}  |  "
-                f"Custo: R$ {custo:.2f}  |  "
-                f"Tempo: {tempo:.2f}s |  "
-                f"Partições Analisadas: {particoes}\n"
-                f"Grupo1: [{g1_str}] | Peso total: {p1}\n"
-                f"Grupo2: [{g2_str}] | Peso total: {p2}"
-            )
-        elif algoritmo == "Heurística PT2":
-            dif = getattr(self, "_heur_pt2_diff", None)
-            heur_time = getattr(self, "_heur_pt2_time", None)
-            # mostrar divisão dos grupos e pesos
-            pesos = [p.obter_peso() for p in self.pecas]
-            from logica.algoritmos.branch_and_boundpt2 import heuristic_greedy_partition
-            _, g1, g2, _ = heuristic_greedy_partition(pesos)
-            def grupo_str(grupo_indices):
-                return ", ".join(f"{i}(p={pesos[i]})" for i in grupo_indices)
-            def peso_total(grupo_indices):
-                return sum(pesos[i] for i in grupo_indices)
-            g1_str = grupo_str(g1)
-            g2_str = grupo_str(g2)
-            p1 = peso_total(g1)
-            p2 = peso_total(g2)
-            self.info_var.set(
-                f"Placas usadas: {num_placas}  |  "
-                f"Custo: R$ {custo:.2f}  |  "
-                f"Tempo: {tempo:.2f}s |  "
-                f"Diferença PT2 (heur): {dif} | Heur time: {heur_time:.4f}s\n"
-                f"Grupo1: [{g1_str}] | Peso total: {p1}\n"
-                f"Grupo2: [{g2_str}] | Peso total: {p2}"
-            )
-        elif algoritmo == "Best-Fit Shelf":
-            self.info_var.set(
-                f"Placas usadas: {num_placas}  |  "
-                f"Custo: R$ {custo:.2f}  |  "
-                f"Tempo: {tempo:.2f}s"
-            )
-        elif algoritmo == "Branch and Bound PT2":
-            # exibe métricas específicas do B&B PT2
-            nos = getattr(self, "_branch_pt2_nodes", None)
-            dif = getattr(self, "_branch_pt2_diff", None)
-            # mostrar divisão dos grupos e pesos
-            pesos = [p.obter_peso() for p in self.pecas]
-            from logica.algoritmos.branch_and_boundpt2 import branch_and_bound_partition
-            _, g1, g2, _ = branch_and_bound_partition(pesos)
-            def grupo_str(grupo_indices):
-                return ", ".join(f"{i}(p={pesos[i]})" for i in grupo_indices)
-            def peso_total(grupo_indices):
-                return sum(pesos[i] for i in grupo_indices)
-            g1_str = grupo_str(g1)
-            g2_str = grupo_str(g2)
-            p1 = peso_total(g1)
-            p2 = peso_total(g2)
-            self.info_var.set(
-                f"Placas usadas: {num_placas}  |  "
-                f"Custo: R$ {custo:.2f}  |  "
-                f"Tempo: {tempo:.2f}s |  "
-                f"Diferença PT2: {dif} | Nós explorados: {nos}\n"
-                f"Grupo1: [{g1_str}] | Peso total: {p1}\n"
-                f"Grupo2: [{g2_str}] | Peso total: {p2}"
-            )
-        else:
-            self.info_var.set(
-                f"Placas usadas: {num_placas}  |  "
-                f"Custo: R$ {custo:.2f}  |  "
-                f"Tempo: {tempo:.2f}s |  "
-                f"Nós explorados: {permutacoes}"
-            )
-
-        # limpar interface
-        for w in self.frame_placas.winfo_children():
-            w.destroy()
-
-        # desenhar placas
-        desenhar_layout(self.frame_placas, layout)
+            
+            if algoritmo == "Força Bruta PT2":
+                from logica.algoritmos.forca_brutapt2 import brute_force_partition
+                dif, g1, g2, particoes = brute_force_partition(pesos)
+                fim = time.perf_counter()
+                tempo = fim - inicio
+                self._desenhar_poroes(g1, g2, pesos, dif, tempo, particoes=particoes)
+                
+            elif algoritmo == "Heurística PT2":
+                from logica.algoritmos.branch_and_boundpt2 import heuristic_greedy_partition
+                dif, g1, g2, t = heuristic_greedy_partition(pesos)
+                self._desenhar_poroes(g1, g2, pesos, dif, t)
+                
+            else:  # Branch and Bound PT2
+                from logica.algoritmos.branch_and_boundpt2 import branch_and_bound_partition
+                dif, g1, g2, nos = branch_and_bound_partition(pesos)
+                fim = time.perf_counter()
+                tempo = fim - inicio
+                self._desenhar_poroes(g1, g2, pesos, dif, tempo, nos_explorados=nos)
+    
+    # ===============================================================
+    # DESENHAR PORÕES - PARTE 2
+    # ===============================================================
+    def _desenhar_poroes(self, g1, g2, pesos, diferenca, tempo, particoes=None, nos_explorados=None):
+        """Desenha visualização dos porões do navio"""
+        
+        # Calcular pesos totais
+        peso_g1 = sum(pesos[i] for i in g1)
+        peso_g2 = sum(pesos[i] for i in g2)
+        
+        # Atualizar info
+        info_texto = f"⚖️ Diferença: {diferenca} kg | ⏱️ Tempo: {tempo:.4f}s"
+        if particoes:
+            info_texto += f" | 🔍 Partições avaliadas: {particoes}"
+        if nos_explorados:
+            info_texto += f" | 🌳 Nós explorados: {nos_explorados}"
+        self.info_var.set(info_texto)
+        
+        # Frame principal
+        frame_principal = tk.Frame(self.frame_placas, bg="#f0f0f0")
+        frame_principal.pack(pady=20, padx=20, fill="both", expand=True)
+        
+        # ===== PORÃO 1 =====
+        self._criar_porao(frame_principal, "PORÃO 1 (Proa)", g1, pesos, peso_g1, "#FF6B6B", 0)
+        
+        # ===== PORÃO 2 =====
+        self._criar_porao(frame_principal, "PORÃO 2 (Popa)", g2, pesos, peso_g2, "#4ECDC4", 1)
+    
+    def _criar_porao(self, parent, titulo, indices, pesos, peso_total, cor, coluna):
+        """Cria a visualização de um porão"""
+        
+        frame = tk.LabelFrame(
+            parent,
+            text=titulo,
+            font=("Arial", 14, "bold"),
+            bg="white",
+            fg=cor,
+            bd=3,
+            relief="groove",
+            padx=15,
+            pady=15
+        )
+        frame.grid(row=0, column=coluna, padx=20, pady=10, sticky="nsew")
+        parent.grid_columnconfigure(coluna, weight=1)
+        
+        # Peso total
+        tk.Label(
+            frame,
+            text=f"⚖️ Peso Total: {peso_total} kg",
+            font=("Arial", 13, "bold"),
+            bg="white",
+            fg=cor
+        ).pack(pady=5)
+        
+        # Número de peças
+        tk.Label(
+            frame,
+            text=f"📦 Quantidade de peças: {len(indices)}",
+            font=("Arial", 11),
+            bg="white"
+        ).pack(pady=3)
+        
+        # Separator
+        ttk.Separator(frame, orient="horizontal").pack(fill="x", pady=10)
+        
+        # Frame para lista de peças com scroll
+        frame_scroll = tk.Frame(frame, bg="white")
+        frame_scroll.pack(fill="both", expand=True)
+        
+        canvas = tk.Canvas(frame_scroll, bg="white", height=300)
+        scrollbar = ttk.Scrollbar(frame_scroll, orient="vertical", command=canvas.yview)
+        frame_pecas = tk.Frame(canvas, bg="white")
+        
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        
+        canvas.create_window((0, 0), window=frame_pecas, anchor="nw")
+        
+        # Adicionar peças
+        for idx in sorted(indices):
+            peso = pesos[idx]
+            frame_peca = tk.Frame(frame_pecas, bg="#f9f9f9", bd=1, relief="solid")
+            frame_peca.pack(fill="x", padx=5, pady=3)
+            
+            tk.Label(
+                frame_peca,
+                text=f"Peça {idx + 1}:",
+                font=("Arial", 10, "bold"),
+                bg="#f9f9f9",
+                width=10,
+                anchor="w"
+            ).pack(side="left", padx=5)
+            
+            tk.Label(
+                frame_peca,
+                text=f"{peso} kg",
+                font=("Arial", 10),
+                bg="#f9f9f9",
+                fg=cor,
+                width=10,
+                anchor="e"
+            ).pack(side="right", padx=5)
+        
+        frame_pecas.update_idletasks()
+        canvas.configure(scrollregion=canvas.bbox("all"))
