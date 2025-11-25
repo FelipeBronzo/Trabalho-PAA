@@ -1,40 +1,38 @@
-# models/prateleira.py
-
 from typing import List
 from .peca import Peca
 
 
 class Prateleira:
     """
-    Linha horizontal dentro da placa. As peças são colocadas lado a lado.
-    y_inicial: coordenada y onde a prateleira começa (em cm).
-    altura: altura fixa da prateleira (igual à da primeira peça inserida).
-    x_usado: quanto da largura já foi ocupado (em cm).
-    pecas: lista de Peca já posicionadas nesta prateleira.
+    Linha horizontal dentro da placa onde peças são colocadas lado a lado.
+
+    - y_inicial: posição vertical da prateleira dentro da placa.
+    - altura: altura fixa da prateleira (definida pela primeira peça inserida).
+    - x_usado: largura já ocupada pela sequência de peças.
+    - pecas: lista de peças alocadas nesta prateleira.
     """
 
     def __init__(self, y_inicial: int):
         self.y_inicial = y_inicial
-        self.altura = 0
-        self.x_usado = 0
+        self.altura = 0          # definida ao inserir a primeira peça
+        self.x_usado = 0         # posição horizontal de inserção
         self.pecas: List[Peca] = []
 
     def cabe_na_prateleira(self, peca: Peca, largura_util_da_placa: int) -> bool:
-        
         """
-        Retorna True se a peça cabe nesta prateleira, considerando:
-        - altura da prateleira (se vazia, admite a altura da peça)
-        - espaço horizontal restante (usa largura_util_da_placa fornecida pela placa)
+        Verifica se a peça cabe nesta prateleira:
+        - respeita a altura da prateleira (adotada pela 1ª peça),
+        - checa o espaço horizontal disponível da placa.
         """
 
-        # Se a prateleira ainda não tem altura definida, ela poderá adotar a altura
+        # altura da prateleira (se vazia, assume a altura da própria peça)
         prateleira_altura = self.altura if self.altura > 0 else peca.altura
 
-        # A peça tem altura maior que a prateleira permitida?
+        # se a peça for mais alta que a prateleira, não cabe
         if peca.altura > prateleira_altura:
             return False
 
-        # Encaixa na largura restante da placa?
+        # se ultrapassar a largura da placa, não cabe
         if self.x_usado + peca.largura > largura_util_da_placa:
             return False
 
@@ -42,22 +40,16 @@ class Prateleira:
 
     def inserir_na_prateleira(self, peca: Peca) -> None:
         """
-        Insere a peça na prateleira: define x,y, atualiza x_usado e lista de peças.
-        Pressupõe-se que cabe_na_prateleira já foi chamada e retornou True.
+        Insere a peça na prateleira (assume que já cabe).
+        Define posições (x, y) e atualiza o espaço ocupado.
         """
 
-        # Se for a primeira peça, a altura da prateleira vira a altura da peça
+        # primeira peça define a altura da prateleira
         if self.altura == 0:
             self.altura = peca.altura
 
-        # posição horizontal começa em x_usado
         peca.x = self.x_usado
-
-        # posição vertical é o y inicial da prateleira
         peca.y = self.y_inicial
 
-        # atualiza ocupação horizontal
         self.x_usado += peca.largura
-
-        # registra peça na prateleira
         self.pecas.append(peca)

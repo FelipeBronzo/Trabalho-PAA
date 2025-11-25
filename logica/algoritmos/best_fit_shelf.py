@@ -7,6 +7,7 @@ from logica.custo.avaliador import calcular_custo_energia
 import copy
 
 def simular_ordem_bestfit(pecas: List[Peca], largura_util: int = 280, altura_util: int = 280) -> List[Placa]:
+    
     """
     Simula posicionamento usando Best-Fit Shelf com ordenação por altura decrescente (BFDH).
     Estratégia:
@@ -20,23 +21,22 @@ def simular_ordem_bestfit(pecas: List[Peca], largura_util: int = 280, altura_uti
     Retorna lista de placas com peças posicionadas (objetos Placa contendo Prateleira e Peca).
     """
 
-    # Trabalha com cópias das peças para não alterar objetos originais
+    # Copiamos as peças para evitar mexer nos objetos originais
     pecas_copia: List[Peca] = [Peca(p.altura, p.largura) for p in pecas]
 
-    # Ordena por altura decrescente (tiebreaker por largura decrescente)
+    # Ordenação padrão do BFDH: maior altura primeiro (e maior largura em caso de empate)
     pecas_copia.sort(key=lambda p: (-p.altura, -p.largura))
 
     placas: List[Placa] = []
-    # inicia com uma placa vazia
-    placas.append(Placa(altura_util=altura_util, largura_util=largura_util))
+    placas.append(Placa(altura_util=altura_util, largura_util=largura_util))  # começa com uma placa vazia
 
     for peca in pecas_copia:
         colocado = False
 
-        # ---------- 1) procurar melhor prateleira existente entre todas as placas ----------
+        # ---------- 1) tenta encaixar em prateleiras já existentes ----------
         melhor_prateleira = None
         melhor_placa = None
-        melhor_sobra = None  # menor sobra horizontal >= 0
+        melhor_sobra = None  # quanto menos sobra horizontal, melhor
 
         for placa in placas:
             for pr in placa.prateleiras:
@@ -44,59 +44,46 @@ def simular_ordem_bestfit(pecas: List[Peca], largura_util: int = 280, altura_uti
                     sobra = placa.largura_util - (pr.x_usado + peca.largura)
                     if sobra < 0:
                         continue
+                    # guarda a prateleira que deixar a menor sobra possível
                     if (melhor_sobra is None) or (sobra < melhor_sobra):
                         melhor_sobra = sobra
                         melhor_prateleira = pr
                         melhor_placa = placa
 
-        if melhor_prateleira is not None and melhor_placa is not None:
-            # inserir na melhor prateleira encontrada
+        # se encontrou prateleira adequada, só insere e passa pra próxima peça
+        if melhor_prateleira is not None:
             melhor_prateleira.inserir_na_prateleira(peca)
-            colocado = True
-
-        if colocado:
             continue
 
-        # ---------- 2) tentar criar nova prateleira em uma placa existente ----------
-        # Escolher placa que permita a criação da prateleira e que minimize sobra vertical
-        # (sobra_vertical = remaining_height_after - peca.altura)
+        # ---------- 2) cria nova prateleira em alguma placa existente ----------
         melhor_placa_para_nova = None
         melhor_sobra_vertical = None
 
         for placa in placas:
-            # calcula altura já ocupada
             altura_ocupada = sum(pr.altura for pr in placa.prateleiras)
             altura_restante = placa.altura_util - altura_ocupada
 
-            # cabe verticalmente e cabe horizontalmente (largura)
+            # verifica se a peça cabe verticalmente e horizontalmente
             if peca.altura <= altura_restante and peca.largura <= placa.largura_util:
                 sobra_vertical = altura_restante - peca.altura
-                if (best := best if False else None) is None:  # trick para evitar linter sem efeito
-                    pass
+                # escolhe a placa que desperdiça menos altura
                 if (melhor_sobra_vertical is None) or (sobra_vertical < melhor_sobra_vertical):
                     melhor_sobra_vertical = sobra_vertical
                     melhor_placa_para_nova = placa
 
         if melhor_placa_para_nova is not None:
-            # cria prateleira e insere (Placa.criar_prateleira já insere e registra)
-            sucesso = melhor_placa_para_nova.criar_prateleira(peca)
-            if not sucesso:
-                # fallback defensivo (não deveria acontecer pois já checamos)
-                pass
-            colocado = True
-
-        if colocado:
+            # criar a prateleira já cuida da inserção
+            melhor_placa_para_nova.criar_prateleira(peca)
             continue
 
-        # ---------- 3) criar nova placa e inserir (deve sempre caber, a não ser que peça seja maior que placa) ----------
+        # ---------- 3) nenhuma placa comporta → criar placa nova ----------
         nova_placa = Placa(altura_util=altura_util, largura_util=largura_util)
         placas.append(nova_placa)
 
-        sucesso = nova_placa.criar_prateleira(peca)
-        if not sucesso:
-            # peça é maior que área útil da placa
+        # aqui só dá erro se a peça realmente não couber na placa
+        if not nova_placa.criar_prateleira(peca):
             raise ValueError(
-                f"Peça {peca.altura}x{peca.largura} maior que área útil da placa ({altura_util}x{largura_util})"
+                f"Peça {peca.altura}x{peca.largura} maior que área útil ({altura_util}x{largura_util})"
             )
 
     return placas

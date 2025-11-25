@@ -3,7 +3,8 @@ from typing import List
 from models.peca import Peca
 
 def ler_pecas(caminho) -> List[Peca]:
-
+    
+    """Lê o arquivo de peças e retorna uma lista de Pecas."""
     pecas = []
 
     with open(caminho, "r") as f:

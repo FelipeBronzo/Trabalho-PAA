@@ -238,20 +238,20 @@ class App(tk.Tk):
             pesos = [p.obter_peso() for p in self.pecas]
             
             if algoritmo == "Força Bruta PT2":
-                from logica.algoritmos.forca_brutapt2 import brute_force_partition
-                dif, g1, g2, particoes = brute_force_partition(pesos)
+                from logica.algoritmos.forca_brutapt2 import forca_bruta_particao
+                dif, g1, g2, particoes = forca_bruta_particao(pesos)
                 fim = time.perf_counter()
                 tempo = fim - inicio
                 self._desenhar_poroes(g1, g2, pesos, dif, tempo, particoes=particoes)
                 
             elif algoritmo == "Heurística PT2":
-                from logica.algoritmos.branch_and_boundpt2 import heuristic_greedy_partition
-                dif, g1, g2, t = heuristic_greedy_partition(pesos)
+                from logica.algoritmos.heuristica_pt2 import heuristica_gulosa_particao
+                dif, g1, g2, t = heuristica_gulosa_particao(pesos)
                 self._desenhar_poroes(g1, g2, pesos, dif, t)
                 
             else:  # Branch and Bound PT2
-                from logica.algoritmos.branch_and_boundpt2 import branch_and_bound_partition
-                dif, g1, g2, nos = branch_and_bound_partition(pesos)
+                from logica.algoritmos.branch_and_boundpt2 import branch_and_bound_particao
+                dif, g1, g2, nos = branch_and_bound_particao(pesos)
                 fim = time.perf_counter()
                 tempo = fim - inicio
                 self._desenhar_poroes(g1, g2, pesos, dif, tempo, nos_explorados=nos)
@@ -267,7 +267,7 @@ class App(tk.Tk):
         peso_g2 = sum(pesos[i] for i in g2)
         
         # Atualizar info
-        info_texto = f"⚖️ Diferença: {diferenca} kg | ⏱️ Tempo: {tempo:.4f}s"
+        info_texto = f"⚖️ Diferença: {diferenca:.4f} kg | ⏱️ Tempo: {tempo:.4f}s"
         if particoes:
             info_texto += f" | 🔍 Partições avaliadas: {particoes}"
         if nos_explorados:
