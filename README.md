@@ -28,37 +28,22 @@ Distinção importante
 
 Como a interface trata PT2
 --------------------------
-Para evitar comportamentos confusos, a interface (`interface/app.py`) chama as
-funções de partição diretamente quando você seleciona uma opção "PT2" (por
-exemplo "Força Bruta PT2", "Branch and Bound PT2", "Heurística PT2").
-Dessa forma o avaliador de placas **não** é executado para as opções PT2 e
-mensagens relacionadas a placas não aparecem durante a resolução do problema
-de partição.
+Para evitar comportamentos confusos, a interface (`interface/app.py`) possui o botão "Modo", onde é
+possível selecionar qual parte do projeto será executada. Troque de modo no canto superior esquerdo.
 
 Formato de entrada suportado
 ----------------------------
-Cada linha do arquivo de peças pode ter:
-- 1 valor: peso (ex.: "12.5")
-- 2 valores: altura largura (ex.: "10 20") — peso será calculado como área
-- 3 valores: altura largura peso (ex.: "10 20 12.5")
+Cada linha do arquivo de peças deve ter:
+- 2 valores: altura largura (ex.: "10 20") — peso será calculado como (altura*largura)/1000
 
 Execução
 --------
 Para abrir a interface GUI (assumindo Python 3 disponível):
 
 ```powershell
-python main.py
+python main.py      # dentro da pasta raíz 
 ```
 
-Selecione o arquivo de peças, escolha o algoritmo no combo e clique em
-"Executar". Para comparar Força Bruta vs Branch-and-Bound parte 2, use o
-botão "Comparar BF vs B&B PT2".
+Selecione o arquivo de peças (dentro da pasta dados já existe alguns), escolha o algoritmo e clique em
+"Executar". Troque de modo no canto superior esquerdo.
 
-Notas finais
-------------
-- PT2 é focado no problema de partição (navio). Se você quiser avaliar custo do
-  empacotamento 2D para uma ordem específica, use os algoritmos de corte/placa
-  e o avaliador (`custo_total_para_ordem`).
-- Sugestões de melhorias: adicionarmos logs configuráveis (módulo `logging`),
-  limites/avisos para execução de força-bruta em instâncias grandes, e
-  relatórios gráficos para os benchmarks PT2.
